@@ -22,26 +22,9 @@ from .sql_updates import check_and_insert_user_agent
 from fake_useragent import UserAgent
 import re
 
+
 class InstaBot:
-    """
-    Instagram bot v 1.2.0
-    like_per_day=1000 - How many likes set bot in one day.
 
-    media_max_like=0 - Don't like media (photo or video) if it have more than
-    media_max_like likes.
-
-    media_min_like=0 - Don't like media (photo or video) if it have less than
-    media_min_like likes.
-
-    tag_list = ['cat', 'car', 'dog'] - Tag list to like.
-
-    max_like_for_one_tag=5 - Like 1 to max_like_for_one_tag times by row.
-
-    log_mod = 0 - Log mod: log_mod = 0 log to console, log_mod = 1 log to file,
-    log_mod = 2 no log.
-
-    https://github.com/LevPasha/instabot.py
-    """
     database_name = "follows_db.db"
     follows_db = None
     follows_db_c = None
@@ -61,7 +44,8 @@ class InstaBot:
     api_user_detail = 'https://i.instagram.com/api/v1/users/%s/info/'
 
     user_agent = "" ""
-    accept_language = 'en-US,en;q=0.5'
+    # accept_language = 'en-US,en;q=0.5'
+    accept_language = 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7'
 
     # If instagram ban you - query return 400 error.
     error_400 = 0
@@ -135,19 +119,9 @@ class InstaBot:
                  end_at_h=23,
                  end_at_m=59,
                  database_name='follows_db.db',
-                 comment_list=[["this", "the", "your"],
-                               ["photo", "picture", "pic", "shot", "snapshot"],
-                               ["is", "looks", "feels", "is really"],
-                               ["great", "super", "good", "very good", "good",
-                                "wow", "WOW", "cool", "GREAT", "magnificent",
-                                "magical", "very cool", "stylish", "beautiful",
-                                "so beautiful", "so stylish", "so professional",
-                                "lovely", "so lovely", "very lovely", "glorious",
-                                "so glorious", "very glorious", "adorable",
-                                "excellent", "amazing"],
-                               [".", "..", "...", "!", "!!", "!!!"]],
+                 comment_list=[],
                  comments_per_day=0,
-                 tag_list=['cat', 'car', 'dog'],
+                 tag_list=[],
                  max_like_for_one_tag=5,
                  unfollow_break_min=15,
                  unfollow_break_max=30,
@@ -164,6 +138,7 @@ class InstaBot:
         check_and_update(self)
         fake_ua = UserAgent()
         self.user_agent = check_and_insert_user_agent(self, str(fake_ua.random))
+        self.user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
         self.bot_start = datetime.datetime.now()
         self.start_at_h = start_at_h
         self.start_at_m = start_at_m
@@ -230,10 +205,10 @@ class InstaBot:
         now_time = datetime.datetime.now()
         log_string = 'Instabot v1.2.0 started at %s:\n' % \
                      (now_time.strftime("%d.%m.%Y %H:%M"))
-        self.write_log(log_string)
-        self.login()
-        self.populate_user_blacklist()
-        signal.signal(signal.SIGTERM, self.cleanup)
+        # self.write_log(log_string)
+        # self.login()
+        # self.populate_user_blacklist()
+        # signal.signal(signal.SIGTERM, self.cleanup)
         atexit.register(self.cleanup)
 
     def populate_user_blacklist(self):
@@ -282,11 +257,12 @@ class InstaBot:
         })
 
         r = self.s.get(self.url)
-        self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
+        # self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
+        csrf_token = re.search('(?<=\"csrf_token\":\")\w+', r.text).group(0)
+        self.s.headers.update({'X-CSRFToken': csrf_token})
         time.sleep(5 * random.random())
         login = self.s.post(
             self.url_login, data=self.login_post, allow_redirects=True)
-        self.s.headers.update({'X-CSRFToken': login.cookies['csrftoken']})
         self.csrftoken = login.cookies['csrftoken']
         #ig_vw=1536; ig_pr=1.25; ig_vh=772;  ig_or=landscape-primary;
         self.s.cookies['ig_vw'] = '1536'
@@ -379,6 +355,46 @@ class InstaBot:
                         r = self.s.get(url_tag)
                         all_data = json.loads(r.text)
                         self.media_by_tag = list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
+                        print(len(self.media_by_tag))
+
+                    except:
+                        self.media_by_tag = []
+                        self.write_log("Except on get_media!")
+                        logging.exception("get_media_id_by_tag")
+                else:
+                    return 0
+
+    def get_media_id_from_tag(self, tag):
+        if self.login_status:
+            if tag.startswith('l:'):
+                tag = tag.replace('l:', '')
+                self.by_location = True
+                log_string = "Get Media by location: %s" % (tag)
+                self.write_log(log_string)
+                if self.login_status == 1:
+                    url_location = self.url_location % (tag)
+                    try:
+                        r = self.s.get(url_location)
+                        all_data = json.loads(r.text)
+                        self.media_by_tag = list(all_data['graphql']['location']['edge_location_to_media']['edges'])
+                    except:
+                        self.media_by_tag = []
+                        self.write_log("Except on get_media!")
+                        logging.exception("get_media_id_by_tag")
+                else:
+                    return 0
+
+            else:
+                log_string = "Get Media by tag: %s" % (tag)
+                self.by_location = False
+                self.write_log(log_string)
+                if self.login_status == 1:
+                    url_tag = self.url_tag % (tag)
+                    try:
+                        r = self.s.get(url_tag)
+                        all_data = json.loads(r.text)
+                        return list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
+                        # print(len(self.media_by_tag))
                     except:
                         self.media_by_tag = []
                         self.write_log("Except on get_media!")
