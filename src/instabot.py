@@ -106,7 +106,7 @@ class InstaBot:
 	next_iteration = {"Like": 0, "Follow": 0, "Unfollow": 0, "Comments": 0}
 
 	def __init__(self, session):
-		self.s = session
+		self.session = session
 		self.login_status = True
 
 	# def __init__(self,
@@ -215,10 +215,37 @@ class InstaBot:
 	# 	# signal.signal(signal.SIGTERM, self.cleanup)
 	# 	atexit.register(self.cleanup)
 
+	'''
+	Rewriten function for getting images in my special object Post
+	'''
+
+	def get_media_from_tag(self, tag):
+		url_tag = self.url_tag % (tag)
+		try:
+			r = self.session.get(url_tag)
+			all_data = json.loads(r.text)
+			return list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
+		except:
+			print("Except on get_media!")
+
+	def get_media_from_location(self, location):
+		url_location = self.url_location % (location)
+		try:
+			r = self.session.get(url_location)
+			all_data = json.loads(r.text)
+			return list(all_data['graphql']['location']['edge_location_to_media']['edges'])
+		except:
+			print("Except on get_media!")
+
+
+
+
+
+
 	def populate_user_blacklist(self):
 		for user in self.user_blacklist:
 			user_id_url = self.url_user_detail % (user)
-			info = self.s.get(user_id_url)
+			info = self.session.get(user_id_url)
 
 			# prevent error if 'Account of user was deleted or link is invalid
 			from json import JSONDecodeError
@@ -245,7 +272,7 @@ class InstaBot:
 			'password': self.user_password
 		}
 
-		self.s.headers.update({
+		self.session.headers.update({
 			'Accept': '*/*',
 			'Accept-Language': self.accept_language,
 			'Accept-Encoding': 'gzip, deflate, br',
@@ -260,23 +287,23 @@ class InstaBot:
 			'X-Requested-With': 'XMLHttpRequest'
 		})
 
-		r = self.s.get(self.url)
+		r = self.session.get(self.url)
 		# self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
 		csrf_token = re.search('(?<=\"csrf_token\":\")\w+', r.text).group(0)
-		self.s.headers.update({'X-CSRFToken': csrf_token})
+		self.session.headers.update({'X-CSRFToken': csrf_token})
 		time.sleep(5 * random.random())
-		login = self.s.post(
+		login = self.session.post(
 			self.url_login, data=self.login_post, allow_redirects=True)
 		self.csrftoken = login.cookies['csrftoken']
 		# ig_vw=1536; ig_pr=1.25; ig_vh=772;  ig_or=landscape-primary;
-		self.s.cookies['ig_vw'] = '1536'
-		self.s.cookies['ig_pr'] = '1.25'
-		self.s.cookies['ig_vh'] = '772'
-		self.s.cookies['ig_or'] = 'landscape-primary'
+		self.session.cookies['ig_vw'] = '1536'
+		self.session.cookies['ig_pr'] = '1.25'
+		self.session.cookies['ig_vh'] = '772'
+		self.session.cookies['ig_or'] = 'landscape-primary'
 		time.sleep(5 * random.random())
 
 		if login.status_code == 200:
-			r = self.s.get('https://www.instagram.com/')
+			r = self.session.get('https://www.instagram.com/')
 			finder = r.text.find(self.user_login)
 			if finder != -1:
 				ui = UserInfo()
@@ -302,7 +329,7 @@ class InstaBot:
 
 		try:
 			logout_post = {'csrfmiddlewaretoken': self.csrftoken}
-			logout = self.s.post(self.url_logout, data=logout_post)
+			logout = self.session.post(self.url_logout, data=logout_post)
 			self.write_log("Logout success!")
 			self.login_status = False
 		except:
@@ -339,7 +366,7 @@ class InstaBot:
 				if self.login_status == 1:
 					url_location = self.url_location % (tag)
 					try:
-						r = self.s.get(url_location)
+						r = self.session.get(url_location)
 						all_data = json.loads(r.text)
 						self.media_by_tag = list(all_data['graphql']['location']['edge_location_to_media']['edges'])
 					except:
@@ -356,7 +383,7 @@ class InstaBot:
 				if self.login_status == 1:
 					url_tag = self.url_tag % (tag)
 					try:
-						r = self.s.get(url_tag)
+						r = self.session.get(url_tag)
 						all_data = json.loads(r.text)
 						self.media_by_tag = list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
 						print(len(self.media_by_tag))
@@ -365,45 +392,6 @@ class InstaBot:
 						self.media_by_tag = []
 						self.write_log("Except on get_media!")
 						logging.exception("get_media_id_by_tag")
-				else:
-					return 0
-
-	def get_media_id_from_tag(self, tag):
-		if self.login_status:
-			if tag.startswith('l:'):
-				tag = tag.replace('l:', '')
-				self.by_location = True
-				log_string = "Get Media by location: %s" % (tag)
-				self.write_log(log_string)
-				if self.login_status == 1:
-					url_location = self.url_location % (tag)
-					try:
-						r = self.s.get(url_location)
-						all_data = json.loads(r.text)
-						self.media_by_tag = list(all_data['graphql']['location']['edge_location_to_media']['edges'])
-					except:
-						self.media_by_tag = []
-						self.write_log("Except on get_media!")
-						logging.exception("get_media_id_by_tag")
-				else:
-					return 0
-
-			else:
-				log_string = "Get Media by tag: %s" % (tag)
-				self.by_location = False
-				# self.write_log(log_string)
-				if self.login_status == 1:
-					url_tag = self.url_tag % (tag)
-					try:
-						r = self.s.get(url_tag)
-						all_data = json.loads(r.text)
-						return list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
-						# print(len(self.media_by_tag))
-					except Exception:
-						self.media_by_tag = []
-						# self.write_log("Except on get_media!")
-						logging.exception("get_media_id_by_tag")
-						return ':('
 				else:
 					return 0
 
@@ -431,7 +419,7 @@ class InstaBot:
 				media_id_url = self.get_instagram_url_from_media_id(int(media_id), only_code=True)
 				url_media = self.url_media_detail % (media_id_url)
 				try:
-					r = self.s.get(url_media)
+					r = self.session.get(url_media)
 					all_data = json.loads(r.text)
 
 					username = str(all_data['graphql']['shortcode_media']['owner']['username'])
@@ -449,7 +437,7 @@ class InstaBot:
 		if self.login_status:
 			try:
 				url_info = self.api_user_detail % user_id
-				r = self.s.get(url_info, headers="")
+				r = self.session.get(url_info, headers="")
 				all_data = json.loads(r.text)
 				username = all_data["user"]["username"]
 				return username
@@ -466,7 +454,7 @@ class InstaBot:
 			if self.login_status == 1:
 				url_info = self.url_user_detail % (username)
 				try:
-					r = self.s.get(url_info)
+					r = self.session.get(url_info)
 					all_data = json.loads(r.text)
 					user_info = all_data['user']
 					follows = user_info['follows']['count']
@@ -591,7 +579,7 @@ class InstaBot:
 												 status=str(like.status_code))
 									self.write_log(log_string)
 									return False
-									# Some error.
+								# Some error.
 								i += 1
 								if delay:
 									time.sleep(self.like_delay * 0.9 +
@@ -613,7 +601,7 @@ class InstaBot:
 		if self.login_status:
 			url_likes = self.url_likes % (media_id)
 			try:
-				like = self.s.post(url_likes)
+				like = self.session.post(url_likes)
 				last_liked_media_id = media_id
 			except:
 				logging.exception("Except on like!")
@@ -625,7 +613,7 @@ class InstaBot:
 		if self.login_status:
 			url_unlike = self.url_unlike % (media_id)
 			try:
-				unlike = self.s.post(url_unlike)
+				unlike = self.session.post(url_unlike)
 			except:
 				logging.exception("Except on unlike!")
 				unlike = 0
@@ -637,7 +625,7 @@ class InstaBot:
 			comment_post = {'comment_text': comment_text}
 			url_comment = self.url_comment % (media_id)
 			try:
-				comment = self.s.post(url_comment, data=comment_post)
+				comment = self.session.post(url_comment, data=comment_post)
 				if comment.status_code == 200:
 					self.comments_counter += 1
 					log_string = 'Write: "%s". #%i.' % (comment_text,
@@ -653,7 +641,7 @@ class InstaBot:
 		if self.login_status:
 			url_follow = self.url_follow % (user_id)
 			try:
-				follow = self.s.post(url_follow)
+				follow = self.session.post(url_follow)
 				if follow.status_code == 200:
 					self.follow_counter += 1
 					log_string = "Followed: %s #%i." % (user_id,
@@ -671,7 +659,7 @@ class InstaBot:
 		if self.login_status:
 			url_unfollow = self.url_unfollow % (user_id)
 			try:
-				unfollow = self.s.post(url_unfollow)
+				unfollow = self.session.post(url_unfollow)
 				if unfollow.status_code == 200:
 					self.unfollow_counter += 1
 					log_string = "Unfollowed: %s #%i." % (user_id,
@@ -687,7 +675,7 @@ class InstaBot:
 		if self.login_status:
 			url_unfollow = self.url_unfollow % (user_id)
 			try:
-				unfollow = self.s.post(url_unfollow)
+				unfollow = self.session.post(url_unfollow)
 				if unfollow.status_code == 200:
 					self.unfollow_counter += 1
 					log_string = "Unfollow: %s #%i of %i." % (
@@ -697,7 +685,7 @@ class InstaBot:
 					log_string = "Slow Down - Pausing for 5 minutes so we don't get banned!"
 					self.write_log(log_string)
 					time.sleep(300)
-					unfollow = self.s.post(url_unfollow)
+					unfollow = self.session.post(url_unfollow)
 					if unfollow.status_code == 200:
 						self.unfollow_counter += 1
 						log_string = "Unfollow: %s #%i of %i." % (
@@ -748,7 +736,7 @@ class InstaBot:
 				self.new_auto_mod_comments()
 				# Bot iteration in 1 sec
 				time.sleep(3)
-				# print("Tic!")
+			# print("Tic!")
 			else:
 				print("sleeping until {hour}:{min}".format(hour=self.start_at_h,
 														   min=self.start_at_m), end="\r")
@@ -836,7 +824,7 @@ class InstaBot:
 
 	def check_exisiting_comment(self, media_code):
 		url_check = self.url_media_detail % (media_code)
-		check_comment = self.s.get(url_check)
+		check_comment = self.session.get(url_check)
 		if check_comment.status_code == 200:
 			all_data = json.loads(check_comment.text)
 			if all_data['graphql']['shortcode_media']['owner']['id'] == self.user_id:
@@ -889,10 +877,11 @@ class InstaBot:
 			if self.login_status == 1:
 				url_tag = self.url_user_detail % (current_user)
 				try:
-					r = self.s.get(url_tag)
+					r = self.session.get(url_tag)
 					all_data = \
-					json.loads(re.search('{"activity.+show_app', r.text, re.DOTALL).group(0) + '":""}')['entry_data'][
-						'ProfilePage'][0]
+						json.loads(re.search('{"activity.+show_app', r.text, re.DOTALL).group(0) + '":""}')[
+							'entry_data'][
+							'ProfilePage'][0]
 
 					user_info = all_data['graphql']['user']
 					i = 0
@@ -975,7 +964,7 @@ class InstaBot:
 			if self.login_status == 1:
 				url_tag = 'https://www.instagram.com/?__a=1'
 				try:
-					r = self.s.get(url_tag)
+					r = self.session.get(url_tag)
 					all_data = json.loads(r.text)
 
 					self.media_on_feed = list(
