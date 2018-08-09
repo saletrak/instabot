@@ -109,112 +109,6 @@ class InstaBot:
 		self.session = session
 		self.login_status = True
 
-	# def __init__(self,
-	# 			 login,
-	# 			 password=None,
-	# 			 like_per_day=1000,
-	# 			 media_max_like=50,
-	# 			 media_min_like=0,
-	# 			 follow_per_day=0,
-	# 			 follow_time=5 * 60 * 60,
-	# 			 unfollow_per_day=0,
-	# 			 start_at_h=0,
-	# 			 start_at_m=0,
-	# 			 end_at_h=23,
-	# 			 end_at_m=59,
-	# 			 database_name='follows_db.db',
-	# 			 comment_list=[],
-	# 			 comments_per_day=0,
-	# 			 tag_list=[],
-	# 			 max_like_for_one_tag=5,
-	# 			 unfollow_break_min=15,
-	# 			 unfollow_break_max=30,
-	# 			 log_mod=0,
-	# 			 proxy="",
-	# 			 user_blacklist={},
-	# 			 tag_blacklist=[],
-	# 			 unwanted_username_list=[],
-	# 			 unfollow_whitelist=[]):
-	#
-	# 	self.database_name = database_name
-	# 	self.follows_db = sqlite3.connect(database_name, timeout=0, isolation_level=None)
-	# 	self.follows_db_c = self.follows_db.cursor()
-	# 	check_and_update(self)
-	# 	fake_ua = UserAgent()
-	# 	self.user_agent = check_and_insert_user_agent(self, str(fake_ua.random))
-	# 	self.user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
-	# 	self.bot_start = datetime.datetime.now()
-	# 	self.start_at_h = start_at_h
-	# 	self.start_at_m = start_at_m
-	# 	self.end_at_h = end_at_h
-	# 	self.end_at_m = end_at_m
-	# 	self.unfollow_break_min = unfollow_break_min
-	# 	self.unfollow_break_max = unfollow_break_max
-	# 	self.user_blacklist = user_blacklist
-	# 	self.tag_blacklist = tag_blacklist
-	# 	self.unfollow_whitelist = unfollow_whitelist
-	# 	self.comment_list = comment_list
-	#
-	# 	self.time_in_day = 24 * 60 * 60
-	# 	# Like
-	# 	self.like_per_day = like_per_day
-	# 	if self.like_per_day != 0:
-	# 		self.like_delay = self.time_in_day / self.like_per_day
-	#
-	# 	# Follow
-	# 	self.follow_time = follow_time
-	# 	self.follow_per_day = follow_per_day
-	# 	if self.follow_per_day != 0:
-	# 		self.follow_delay = self.time_in_day / self.follow_per_day
-	#
-	# 	# Unfollow
-	# 	self.unfollow_per_day = unfollow_per_day
-	# 	if self.unfollow_per_day != 0:
-	# 		self.unfollow_delay = self.time_in_day / self.unfollow_per_day
-	#
-	# 	# Comment
-	# 	self.comments_per_day = comments_per_day
-	# 	if self.comments_per_day != 0:
-	# 		self.comments_delay = self.time_in_day / self.comments_per_day
-	#
-	# 	# Don't like if media have more than n likes.
-	# 	self.media_max_like = media_max_like
-	# 	# Don't like if media have less than n likes.
-	# 	self.media_min_like = media_min_like
-	# 	# Auto mod seting:
-	# 	# Default list of tag.
-	# 	self.tag_list = tag_list
-	# 	# Get random tag, from tag_list, and like (1 to n) times.
-	# 	self.max_like_for_one_tag = max_like_for_one_tag
-	# 	# log_mod 0 to console, 1 to file
-	# 	self.log_mod = log_mod
-	# 	self.s = requests.Session()
-	# 	# if you need proxy make something like this:
-	# 	# self.s.proxies = {"https" : "http://proxyip:proxyport"}
-	# 	# by @ageorgios
-	# 	if proxy != "":
-	# 		proxies = {
-	# 			'http': 'http://' + proxy,
-	# 			'https': 'http://' + proxy,
-	# 		}
-	# 		self.s.proxies.update(proxies)
-	# 	# convert login to lower
-	# 	self.user_login = login.lower()
-	# 	self.user_password = password
-	# 	self.bot_mode = 0
-	# 	self.media_by_tag = []
-	# 	self.media_on_feed = []
-	# 	self.media_by_user = []
-	# 	self.unwanted_username_list = unwanted_username_list
-	# 	now_time = datetime.datetime.now()
-	# 	log_string = 'Instabot v1.2.0 started at %s:\n' % \
-	# 				 (now_time.strftime("%d.%m.%Y %H:%M"))
-	# 	# self.write_log(log_string)
-	# 	# self.login()
-	# 	# self.populate_user_blacklist()
-	# 	# signal.signal(signal.SIGTERM, self.cleanup)
-	# 	atexit.register(self.cleanup)
-
 	'''
 	Rewriten function for getting images in my special object Post
 	'''
@@ -236,6 +130,30 @@ class InstaBot:
 			return list(all_data['graphql']['location']['edge_location_to_media']['edges'])
 		except:
 			print("Except on get_media!")
+
+	def like(self, media_id):
+		url_likes = self.url_likes % media_id
+		try:
+			like = self.session.post(url_likes)
+			res = json.loads(like.text)
+			if res['status'] == 'ok':
+				return True
+		except:
+			pass
+		return False
+
+	def comment(self, media_id, comment_text):
+		""" Send http request to comment """
+		comment_post = {'comment_text': comment_text}
+		url_comment = self.url_comment % media_id
+		try:
+			comment = self.session.post(url_comment, data=comment_post)
+			res = json.loads(comment.text)
+			if res['status'] == 'ok':
+				return True
+		except:
+			pass
+		return False
 
 
 
@@ -596,17 +514,7 @@ class InstaBot:
 			else:
 				self.write_log("No media to like!")
 
-	def like(self, media_id):
-		""" Send http request to like media by ID """
-		if self.login_status:
-			url_likes = self.url_likes % (media_id)
-			try:
-				like = self.session.post(url_likes)
-				last_liked_media_id = media_id
-			except:
-				logging.exception("Except on like!")
-				like = 0
-			return like
+
 
 	def unlike(self, media_id):
 		""" Send http request to unlike media by ID """
@@ -619,22 +527,7 @@ class InstaBot:
 				unlike = 0
 			return unlike
 
-	def comment(self, media_id, comment_text):
-		""" Send http request to comment """
-		if self.login_status:
-			comment_post = {'comment_text': comment_text}
-			url_comment = self.url_comment % (media_id)
-			try:
-				comment = self.session.post(url_comment, data=comment_post)
-				if comment.status_code == 200:
-					self.comments_counter += 1
-					log_string = 'Write: "%s". #%i.' % (comment_text,
-														self.comments_counter)
-					self.write_log(log_string)
-				return comment
-			except:
-				logging.exception("Except on comment!")
-		return False
+
 
 	def follow(self, user_id):
 		""" Send http request to follow """
