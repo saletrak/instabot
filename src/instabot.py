@@ -133,27 +133,40 @@ class InstaBot:
 
 	def like(self, media_id):
 		url_likes = self.url_likes % media_id
-		try:
-			like = self.session.post(url_likes)
+		like = self.session.post(url_likes)
+		if like.status_code == 200:
 			res = json.loads(like.text)
 			if res['status'] == 'ok':
-				return True
-		except:
-			pass
-		return False
+				return like
+		elif like.status_code == 400:
+			raise InstaBot.Err400instagram(like)
+		else:
+			raise InstaBot.Not200code(like)
 
 	def comment(self, media_id, comment_text):
-		""" Send http request to comment """
 		comment_post = {'comment_text': comment_text}
 		url_comment = self.url_comment % media_id
-		try:
-			comment = self.session.post(url_comment, data=comment_post)
+		comment = self.session.post(url_comment, data=comment_post)
+		if comment.status_code == 200:
 			res = json.loads(comment.text)
 			if res['status'] == 'ok':
-				return True
-		except:
-			pass
-		return False
+				return comment
+		elif comment.status_code == 400:
+			raise InstaBot.Err400instagram(comment)
+		else:
+			raise InstaBot.Not200code(comment)
+
+	class RequestException(Exception):
+		def __init__(self, res, text=''):
+			self.res = res
+			self.text = text
+
+	class Err400instagram(RequestException):
+		pass
+
+	class Not200code(RequestException):
+		pass
+
 
 
 
