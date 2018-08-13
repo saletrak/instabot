@@ -24,9 +24,6 @@ import re
 
 
 class InstaBot:
-	database_name = "follows_db.db"
-	follows_db = None
-	follows_db_c = None
 
 	url = 'https://www.instagram.com/'
 	url_tag = 'https://www.instagram.com/explore/tags/%s/?__a=1'
@@ -42,79 +39,21 @@ class InstaBot:
 	url_user_detail = 'https://www.instagram.com/%s/'
 	api_user_detail = 'https://i.instagram.com/api/v1/users/%s/info/'
 
-	user_agent = "" ""
 	# accept_language = 'en-US,en;q=0.5'
 	accept_language = 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7'
-
-	# If instagram ban you - query return 400 error.
-	error_400 = 0
-	# If you have 3 400 error in row - looks like you banned.
-	error_400_to_ban = 3
-	# If InstaBot think you are banned - going to sleep.
-	ban_sleep_time = 2 * 60 * 60
-
-	# All counter.
-	bot_mode = 0
-	like_counter = 0
-	follow_counter = 0
-	unfollow_counter = 0
-	comments_counter = 0
-	current_user = 'hajka'
-	current_index = 0
-	current_id = 'abcds'
-	# List of user_id, that bot follow
-	bot_follow_list = []
-	user_info_list = []
-	user_list = []
-	ex_user_list = []
-	unwanted_username_list = []
-	is_checked = False
-	is_selebgram = False
-	is_fake_account = False
-	is_active_user = False
-	is_following = False
-	is_follower = False
-	is_rejected = False
-	is_self_checking = False
-	is_by_tag = False
-	is_follower_number = 0
-
-	self_following = 0
-	self_follower = 0
-
-	# Log setting.
-	logging.basicConfig(filename='errors.log', level=logging.INFO)
-	log_file_path = ''
-	log_file = 0
-	log_mod = 1
-
-	# Other.
-	user_id = 0
-	media_by_tag = 0
-	media_on_feed = []
-	media_by_user = []
-	login_status = False
-	by_location = False
-
-	# Running Times
-	start_at_h = 0,
-	start_at_m = 0,
-	end_at_h = 23,
-	end_at_m = 59,
-
-	# For new_auto_mod
-	next_iteration = {"Like": 0, "Follow": 0, "Unfollow": 0, "Comments": 0}
 
 	def __init__(self, session):
 		self.session = session
 		self.login_status = True
+
+		# print(self.get_userinfo_by_name('saletrak'))
 
 	'''
 	Rewriten function for getting images in my special object Post
 	'''
 
 	def get_media_from_tag(self, tag):
-		url_tag = self.url_tag % (tag)
+		url_tag = self.url_tag % tag
 		try:
 			r = self.session.get(url_tag)
 			all_data = json.loads(r.text)
@@ -123,7 +62,7 @@ class InstaBot:
 			print("Except on get_media!")
 
 	def get_media_from_location(self, location):
-		url_location = self.url_location % (location)
+		url_location = self.url_location % location
 		try:
 			r = self.session.get(url_location)
 			all_data = json.loads(r.text)
@@ -155,6 +94,16 @@ class InstaBot:
 			raise InstaBot.Err400instagram(comment)
 		else:
 			raise InstaBot.Not200code(comment)
+
+	def get_userinfo_by_name(self, username):
+		url_info = self.url_user_detail % username
+		r = self.session.get(url_info)
+		print(r)
+		print(r.text)
+		# all_data = json.loads(r.text)
+		# user_info = all_data['user']
+		# return user_info
+		return r.text
 
 	class RequestException(Exception):
 		def __init__(self, res, text=''):
@@ -377,30 +326,6 @@ class InstaBot:
 				return False
 		else:
 			return False
-
-	def get_userinfo_by_name(self, username):
-		""" Get user info by name """
-
-		if self.login_status:
-			if self.login_status == 1:
-				url_info = self.url_user_detail % (username)
-				try:
-					r = self.session.get(url_info)
-					all_data = json.loads(r.text)
-					user_info = all_data['user']
-					follows = user_info['follows']['count']
-					follower = user_info['followed_by']['count']
-					follow_viewer = user_info['follows_viewer']
-					if follower > 3000 or follows > 1500:
-						self.write_log('   >>>This is probably Selebgram, Business or Fake account')
-					if follow_viewer:
-						return None
-					return user_info
-				except:
-					logging.exception("Except on get_userinfo_by_name")
-					return False
-			else:
-				return False
 
 	def like_all_exist_media(self, media_size=-1, delay=True):
 		""" Like all media ID that have self.media_by_tag """
